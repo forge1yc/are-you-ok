@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+    <!-- 背景圆 -->
+    <circle cx="64" cy="64" r="60" fill="#2196F3"/>
+    
+    <!-- 翻译符号 -->
+    <g fill="white">
+        <!-- T字母 -->
+        <rect x="30" y="35" width="40" height="6" rx="2"/>
+        <rect x="47" y="35" width="6" height="35" rx="2"/>
+        
+        <!-- 箭头 -->
+        <path d="M75 55 L95 55 L85 45 M95 55 L85 65" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        
+        <!-- 中文字符 -->
+        <rect x="40" y="80" width="6" height="20" rx="2" transform="rotate(30 40 80)"/>
+        <rect x="60" y="80" width="6" height="20" rx="2" transform="rotate(-30 60 80)"/>
+        <rect x="45" y="85" width="20" height="6" rx="2"/>
+    </g>
+</svg> 
