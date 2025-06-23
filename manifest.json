@@ -1,16 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Are-you-ok",
+  "name": "Are You OK",
   "version": "1.0",
-  "description": "快速翻译页面上的英文内容，无需重新加载页面",
+  "description": "一个简单的英文单词翻译工具，鼠标悬停即可查看中文释义",
   "permissions": [
-    "activeTab",
-    "storage",
-    "commands",
-    "scripting"
-  ],
-  "host_permissions": [
-    "<all_urls>"
+    "activeTab"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -20,29 +14,19 @@
       "128": "images/icon128.png"
     }
   },
-  "commands": {
-    "translate-page": {
-      "suggested_key": {
-        "default": "Ctrl+E",
-        "mac": "Command+E"
-      },
-      "description": "翻译页面上的英文文本"
-    }
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"]
-    }
-  ],
   "icons": {
     "16": "images/icon16.png",
     "48": "images/icon48.png",
     "128": "images/icon128.png"
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["content.css"],
+      "js": ["content.js"]
+    }
+  ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   }
 } 

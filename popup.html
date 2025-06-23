@@ -5,78 +5,35 @@
   <style>
     body {
       width: 300px;
-      padding: 10px;
-      font-family: Arial, sans-serif;
+      padding: 15px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.5;
     }
-    .container {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+    h1 {
+      font-size: 18px;
+      margin: 0 0 10px 0;
+      color: #333;
     }
-    .shortcut-info {
+    p {
+      margin: 0 0 8px 0;
+      color: #666;
+      font-size: 14px;
+    }
+    .tip {
       background: #f5f5f5;
       padding: 10px;
       border-radius: 4px;
-    }
-    .shortcut-key {
-      font-weight: bold;
-      color: #2196F3;
-    }
-    .customize-link {
-      color: #2196F3;
-      text-decoration: none;
       margin-top: 10px;
-      display: inline-block;
-    }
-    .customize-link:hover {
-      text-decoration: underline;
-    }
-    .mode-selector {
-      background: #f5f5f5;
-      padding: 10px;
-      border-radius: 4px;
-      margin-bottom: 10px;
-    }
-    .mode-selector label {
-      display: block;
-      margin-bottom: 5px;
-      cursor: pointer;
-    }
-    .mode-selector input[type="radio"] {
-      margin-right: 8px;
+      font-size: 13px;
+      color: #888;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Are-you-ok</h2>
-    <div class="mode-selector">
-      <h3>翻译模式：</h3>
-      <label>
-        <input type="radio" name="translateMode" value="hover" checked> 
-        悬浮翻译（鼠标悬停时翻译单句）
-      </label>
-      <label>
-        <input type="radio" name="translateMode" value="full"> 
-        全文翻译（一次性翻译所有内容）
-      </label>
-    </div>
-    <div class="shortcut-info">
-      快捷键: <span class="shortcut-key" id="shortcutKey">Ctrl+E (Windows) / Command+E (Mac)</span>
-    </div>
-    <p>使用方法：</p>
-    <ol>
-      <li>打开任意英文网页</li>
-      <li>选择翻译模式：
-        <ul>
-          <li>悬浮翻译：将鼠标悬停在英文文本上即可查看翻译</li>
-          <li>全文翻译：按下快捷键后直接显示所有翻译</li>
-        </ul>
-      </li>
-      <li>按下快捷键（Ctrl+E 或 Command+E）开始翻译</li>
-    </ol>
-    <a href="chrome://extensions/shortcuts" class="customize-link" id="customizeShortcut">自定义快捷键</a>
+  <h1>Are You OK - 单词翻译</h1>
+  <p>将鼠标悬停在任何英文单词上，即可查看中文翻译。</p>
+  <div class="tip">
+    提示：翻译结果会显示在鼠标附近，自动避免遮挡。
   </div>
-  <script src="popup.js"></script>
 </body>
 </html> 
