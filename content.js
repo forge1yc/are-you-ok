@@ -5,6 +5,9 @@
     isInitialized: false,
     translationCache: new Map(),
     translationContainer: null,
+    debounceTimer: null,
+    lastWord: null,
+    lastPosition: { x: 0, y: 0 },
 
     // 初始化函数
     initialize() {
@@ -40,6 +43,8 @@
         border: 1px solid rgba(255, 255, 255, 0.1);
         max-width: 300px;
         word-wrap: break-word;
+        opacity: 0;
+        transition: opacity 0.2s ease-out;
       `;
 
       const originalText = document.createElement('div');
@@ -65,31 +70,71 @@
 
     // 设置事件监听器
     setupEventListeners() {
-      document.addEventListener('mousemove', this.handleMouseMove.bind(this));
+      // 使用节流的mousemove处理
+      document.addEventListener('mousemove', (e) => {
+        // 计算鼠标移动距离
+        const distance = Math.sqrt(
+          Math.pow(e.clientX - this.lastPosition.x, 2) +
+          Math.pow(e.clientY - this.lastPosition.y, 2)
+        );
+
+        // 更新最后位置
+        this.lastPosition = { x: e.clientX, y: e.clientY };
+
+        // 如果移动距离小于5像素，不触发新的检测
+        if (distance < 5) return;
+
+        // 清除之前的定时器
+        if (this.debounceTimer) {
+          clearTimeout(this.debounceTimer);
+        }
+
+        // 设置新的定时器
+        this.debounceTimer = setTimeout(() => {
+          this.handleMouseMove(e);
+        }, 100); // 100ms的防抖延迟
+      });
+
       document.addEventListener('mouseout', this.handleMouseOut.bind(this));
     },
 
     // 处理鼠标移动
     handleMouseMove(event) {
-      // 获取鼠标位置的单词
       const word = this.getWordAtPoint(event.clientX, event.clientY);
+      
+      // 如果没有检测到单词，隐藏翻译并重置状态
       if (!word) {
         this.hideTranslation();
+        this.lastWord = null;
         return;
       }
 
-      // 检查是否是英文单词
-      if (this.isEnglishWord(word)) {
-        this.translateAndShow(word, event.clientX, event.clientY);
-      } else {
-        this.hideTranslation();
+      // 如果是同一个单词，不做处理
+      if (word === this.lastWord) {
+        return;
       }
+
+      // 如果不是英文单词，隐藏翻译
+      if (!this.isEnglishWord(word)) {
+        this.hideTranslation();
+        this.lastWord = null;
+        return;
+      }
+
+      // 更新最后处理的单词
+      this.lastWord = word;
+      this.translateAndShow(word, event.clientX, event.clientY);
     },
 
     // 处理鼠标移出
     handleMouseOut(event) {
+      // 检查是否真的离开了页面元素
       if (!event.relatedTarget) {
         this.hideTranslation();
+        this.lastWord = null;
+        if (this.debounceTimer) {
+          clearTimeout(this.debounceTimer);
+        }
       }
     },
 
@@ -98,64 +143,32 @@
       const element = document.elementFromPoint(x, y);
       if (!element || !element.textContent) return null;
 
-      // 如果是文本节点
-      if (element.nodeType === Node.TEXT_NODE) {
-        return this.getWordFromPosition(element, x, y);
-      }
-
-      // 获取元素中的文本节点
-      const textNode = Array.from(element.childNodes)
-        .find(node => node.nodeType === Node.TEXT_NODE);
-      
-      if (textNode) {
-        return this.getWordFromPosition(textNode, x, y);
-      }
-
-      // 如果元素本身就是一个单词
-      const text = element.textContent.trim();
-      if (text.split(/\s+/).length === 1) {
-        return text;
-      }
-
-      return null;
-    },
-
-    // 从位置获取单词
-    getWordFromPosition(textNode, x, y) {
-      const range = document.createRange();
-      range.selectNodeContents(textNode);
-      
-      const textRect = range.getBoundingClientRect();
-      if (x < textRect.left || x > textRect.right || 
-          y < textRect.top || y > textRect.bottom) {
+      // 如果鼠标在输入框或文本区域上，不显示翻译
+      if (element.tagName === 'INPUT' || 
+          element.tagName === 'TEXTAREA' || 
+          element.isContentEditable) {
         return null;
       }
 
-      const text = textNode.textContent;
-      const words = text.match(/\b\w+\b/g) || [];
-      
-      // 找到最接近鼠标位置的单词
-      let closestWord = null;
-      let minDistance = Infinity;
+      // 获取鼠标位置的文本节点和偏移量
+      let range = document.caretRangeFromPoint(x, y);
+      if (!range) return null;
 
-      words.forEach(word => {
-        const wordRange = document.createRange();
-        const startIndex = text.indexOf(word);
-        const endIndex = startIndex + word.length;
+      // 扩展选区到单词边界
+      try {
+        range.expand('word');
+        const word = range.toString().trim();
         
-        wordRange.setStart(textNode, startIndex);
-        wordRange.setEnd(textNode, endIndex);
-        
-        const rect = wordRange.getBoundingClientRect();
-        const distance = Math.abs(x - (rect.left + rect.width / 2));
-        
-        if (distance < minDistance) {
-          minDistance = distance;
-          closestWord = word;
+        // 如果是空白或者太长，返回null
+        if (!word || word.length > 50 || /^\s*$/.test(word)) {
+          return null;
         }
-      });
 
-      return closestWord;
+        return word;
+      } catch (e) {
+        console.error('Error expanding range:', e);
+        return null;
+      }
     },
 
     // 检查是否是英文单词
@@ -211,17 +224,18 @@
       originalText.textContent = word;
       translatedText.textContent = translation;
 
+      // 平滑过渡
+      container.style.transition = 'all 0.2s ease-out';
+
       // 计算位置，确保在视口内
       const containerRect = container.getBoundingClientRect();
-      let left = x + 10; // 鼠标右侧10px
-      let top = y + 10;  // 鼠标下方10px
+      let left = x + 10;
+      let top = y + 10;
 
-      // 确保不超出右边界
       if (left + containerRect.width > window.innerWidth) {
         left = x - containerRect.width - 10;
       }
 
-      // 确保不超出下边界
       if (top + containerRect.height > window.innerHeight) {
         top = y - containerRect.height - 10;
       }
@@ -229,12 +243,20 @@
       container.style.left = `${left}px`;
       container.style.top = `${top}px`;
       container.style.display = 'block';
+      container.style.opacity = '1';
     },
 
     // 隐藏翻译
     hideTranslation() {
       if (this.translationContainer) {
-        this.translationContainer.style.display = 'none';
+        this.translationContainer.style.opacity = '0';
+        setTimeout(() => {
+          if (this.translationContainer.style.opacity === '0') {
+            this.translationContainer.style.display = 'none';
+            // 重置最后处理的单词
+            this.lastWord = null;
+          }
+        }, 200);
       }
     }
   };
