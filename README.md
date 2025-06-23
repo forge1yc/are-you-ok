@@ -1,5 +1,7 @@
 # Are You OK - 智能单词翻译扩展
 
+[English](README_EN.md) | 简体中文
+
 一款简单但强大的 Chrome 浏览器扩展，让英文单词翻译变得轻松自然。只需将鼠标悬停在任何英文单词上，即可立即查看中文释义。
 
 ## ✨ 特色功能
@@ -64,3 +66,26 @@
 ## 📄 许可证
 
 MIT License - 详见 LICENSE 文件
+
+## 🌐 相关链接
+
+- [English Documentation](README_EN.md)
+- [问题反馈](https://github.com/yourusername/are-you-ok/issues)
+- [Chrome 网上应用店](https://chrome.google.com/webstore/detail/are-you-ok/[your-extension-id])
+
+## 🙏 致谢
+
+- 感谢所有贡献者和用户
+- 由 Google Translate API 提供支持
+- 图标采用现代简约设计
+
+## 📧 联系我们
+
+如果您有任何问题或建议，欢迎：
+- 提交 Issue
+- 提交 Pull Request
+- 通过 GitHub 联系我们
+
+---
+
+用 ❤️ 为全球华人开发者社区精心打造
