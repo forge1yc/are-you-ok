@@ -243,11 +243,29 @@
     // 翻译文本
     async translateText(text) {
       const isEnglish = this.isEnglishWord(text);
-      const apiUrl = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
       
       if (isEnglish) {
         try {
-          const response = await fetch(apiUrl + text);
+          // 尝试使用有道词典API获取更详细的翻译和音标
+          const response = await fetch(`https://dict.youdao.com/jsonapi?q=${encodeURIComponent(text)}`);
+          const data = await response.json();
+          
+          if (data.basic) {
+            return {
+              translation: data.basic.explains.join('；'),
+              phonetic: data.basic['us-phonetic'] ? `美 [${data.basic['us-phonetic']}]` : 
+                       data.basic['uk-phonetic'] ? `英 [${data.basic['uk-phonetic']}]` : 
+                       data.basic.phonetic ? `[${data.basic.phonetic}]` : '',
+              type: 'en2zh'
+            };
+          }
+        } catch (error) {
+          console.error('Dictionary API error:', error);
+        }
+
+        // 如果有道词典API失败，尝试使用Dictionary API
+        try {
+          const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(text)}`);
           const data = await response.json();
           
           if (Array.isArray(data) && data.length > 0) {
@@ -265,7 +283,7 @@
         }
       }
 
-      // 如果是中文或者英文词典查询失败，使用翻译API
+      // 如果是中文或者词典API都失败了，使用翻译API
       const targetLang = isEnglish ? 'zh' : 'en';
       try {
         const response = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' + targetLang + '&dt=t&q=' + encodeURIComponent(text));
