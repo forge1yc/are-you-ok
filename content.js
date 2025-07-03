@@ -8,15 +8,37 @@
     debounceTimer: null,
     lastWord: null,
     lastPosition: { x: 0, y: 0 },
+    settings: {
+      en2zhEnabled: true,
+      zh2enEnabled: true
+    },
 
     // 初始化函数
     initialize() {
       if (this.isInitialized) return;
       
       console.log('Initializing WordTranslator');
+      this.loadSettings();
       this.createTranslationContainer();
       this.setupEventListeners();
       this.isInitialized = true;
+    },
+
+    // 加载设置
+    async loadSettings() {
+      const result = await chrome.storage.sync.get(['en2zhEnabled', 'zh2enEnabled']);
+      this.settings.en2zhEnabled = result.en2zhEnabled !== false;
+      this.settings.zh2enEnabled = result.zh2enEnabled !== false;
+
+      // 监听设置变化
+      chrome.storage.onChanged.addListener((changes) => {
+        if (changes.en2zhEnabled) {
+          this.settings.en2zhEnabled = changes.en2zhEnabled.newValue;
+        }
+        if (changes.zh2enEnabled) {
+          this.settings.zh2enEnabled = changes.zh2enEnabled.newValue;
+        }
+      });
     },
 
     // 创建翻译容器
@@ -62,8 +84,18 @@
         font-weight: 500;
       `;
 
+      const phoneticText = document.createElement('div');
+      phoneticText.className = 'phonetic-text';
+      phoneticText.style.cssText = `
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 12px;
+        margin-top: 4px;
+        font-style: italic;
+      `;
+
       container.appendChild(originalText);
       container.appendChild(translatedText);
+      container.appendChild(phoneticText);
       document.body.appendChild(container);
       this.translationContainer = container;
     },
@@ -100,30 +132,35 @@
 
     // 处理鼠标移动
     handleMouseMove(event) {
-      const word = this.getWordAtPoint(event.clientX, event.clientY);
+      const text = this.getTextAtPoint(event.clientX, event.clientY);
       
-      // 如果没有检测到单词，隐藏翻译并重置状态
-      if (!word) {
+      // 如果没有检测到文本，隐藏翻译并重置状态
+      if (!text) {
         this.hideTranslation();
         this.lastWord = null;
         return;
       }
 
-      // 如果是同一个单词，不做处理
-      if (word === this.lastWord) {
+      // 如果是同一个文本，不做处理
+      if (text === this.lastWord) {
         return;
       }
 
-      // 如果不是英文单词，隐藏翻译
-      if (!this.isEnglishWord(word)) {
+      // 根据文本类型和设置决定是否翻译
+      const isEnglish = this.isEnglishWord(text);
+      const isChinese = this.isChineseText(text);
+
+      if ((isEnglish && !this.settings.en2zhEnabled) || 
+          (isChinese && !this.settings.zh2enEnabled) ||
+          (!isEnglish && !isChinese)) {
         this.hideTranslation();
         this.lastWord = null;
         return;
       }
 
-      // 更新最后处理的单词
-      this.lastWord = word;
-      this.translateAndShow(word, event.clientX, event.clientY);
+      // 更新最后处理的文本
+      this.lastWord = text;
+      this.translateAndShow(text, event.clientX, event.clientY);
     },
 
     // 处理鼠标移出
@@ -138,8 +175,8 @@
       }
     },
 
-    // 获取指定位置的单词
-    getWordAtPoint(x, y) {
+    // 获取指定位置的文本
+    getTextAtPoint(x, y) {
       const element = document.elementFromPoint(x, y);
       if (!element || !element.textContent) return null;
 
@@ -157,14 +194,14 @@
       // 扩展选区到单词边界
       try {
         range.expand('word');
-        const word = range.toString().trim();
+        const text = range.toString().trim();
         
         // 如果是空白或者太长，返回null
-        if (!word || word.length > 50 || /^\s*$/.test(word)) {
+        if (!text || text.length > 50 || /^\s*$/.test(text)) {
           return null;
         }
 
-        return word;
+        return text;
       } catch (e) {
         console.error('Error expanding range:', e);
         return null;
@@ -172,20 +209,25 @@
     },
 
     // 检查是否是英文单词
-    isEnglishWord(word) {
-      return /^[a-zA-Z]{2,}$/.test(word);
+    isEnglishWord(text) {
+      return /^[a-zA-Z]{2,}$/.test(text);
+    },
+
+    // 检查是否是中文文本
+    isChineseText(text) {
+      return /^[\u4e00-\u9fa5]{1,}$/.test(text);
     },
 
     // 翻译并显示
-    async translateAndShow(word, x, y) {
-      if (!word) return;
+    async translateAndShow(text, x, y) {
+      if (!text) return;
 
-      let translation = this.translationCache.get(word);
+      let translation = this.translationCache.get(text);
       if (!translation) {
         try {
-          translation = await this.translateWord(word);
+          translation = await this.translateText(text);
           if (translation) {
-            this.translationCache.set(word, translation);
+            this.translationCache.set(text, translation);
           }
         } catch (error) {
           console.error('Translation error:', error);
@@ -194,74 +236,105 @@
       }
 
       if (translation) {
-        this.showTranslation(word, translation, x, y);
+        this.showTranslation(text, translation, x, y);
       }
     },
 
-    // 翻译单词
-    async translateWord(word) {
-      try {
-        const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=${encodeURIComponent(word)}`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+    // 翻译文本
+    async translateText(text) {
+      const isEnglish = this.isEnglishWord(text);
+      const apiUrl = 'https://api.dictionaryapi.dev/api/v2/entries/en/';
+      
+      if (isEnglish) {
+        try {
+          const response = await fetch(apiUrl + text);
+          const data = await response.json();
+          
+          if (Array.isArray(data) && data.length > 0) {
+            const entry = data[0];
+            const meaning = entry.meanings[0]?.definitions[0]?.definition || '';
+            const phonetic = entry.phonetic || entry.phonetics?.[0]?.text || '';
+            return {
+              translation: meaning,
+              phonetic: phonetic,
+              type: 'en2zh'
+            };
+          }
+        } catch (error) {
+          console.error('Dictionary API error:', error);
         }
+      }
+
+      // 如果是中文或者英文词典查询失败，使用翻译API
+      const targetLang = isEnglish ? 'zh' : 'en';
+      try {
+        const response = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' + targetLang + '&dt=t&q=' + encodeURIComponent(text));
         const data = await response.json();
-        return data[0][0][0];
+        return {
+          translation: data[0][0][0],
+          phonetic: '',
+          type: isEnglish ? 'en2zh' : 'zh2en'
+        };
       } catch (error) {
-        console.error('Translation error:', error);
+        console.error('Translation API error:', error);
         return null;
       }
     },
 
     // 显示翻译
-    showTranslation(word, translation, x, y) {
+    showTranslation(text, translationData, x, y) {
       const container = this.translationContainer;
       if (!container) return;
 
-      const originalText = container.querySelector('.original-word');
-      const translatedText = container.querySelector('.translated-word');
+      const originalTextElem = container.querySelector('.original-word');
+      const translatedTextElem = container.querySelector('.translated-word');
+      const phoneticTextElem = container.querySelector('.phonetic-text');
 
-      originalText.textContent = word;
-      translatedText.textContent = translation;
+      originalTextElem.textContent = text;
+      translatedTextElem.textContent = translationData.translation;
+      phoneticTextElem.textContent = translationData.phonetic || '';
 
-      // 平滑过渡
-      container.style.transition = 'all 0.2s ease-out';
+      // 计算位置
+      const rect = container.getBoundingClientRect();
+      const margin = 15; // 与鼠标的间距
+      
+      // 初始位置在鼠标右下方
+      let posX = x + margin;
+      let posY = y + margin;
 
-      // 计算位置，确保在视口内
-      const containerRect = container.getBoundingClientRect();
-      let left = x + 10;
-      let top = y + 10;
-
-      if (left + containerRect.width > window.innerWidth) {
-        left = x - containerRect.width - 10;
+      // 确保不超出视窗
+      if (posX + rect.width > window.innerWidth) {
+        posX = x - rect.width - margin; // 切换到左侧
+      }
+      if (posY + rect.height > window.innerHeight) {
+        posY = y - rect.height - margin; // 切换到上方
       }
 
-      if (top + containerRect.height > window.innerHeight) {
-        top = y - containerRect.height - 10;
-      }
-
-      container.style.left = `${left}px`;
-      container.style.top = `${top}px`;
+      // 应用位置
+      container.style.left = posX + 'px';
+      container.style.top = posY + 'px';
       container.style.display = 'block';
-      container.style.opacity = '1';
+      
+      // 使用 requestAnimationFrame 来确保过渡动画正常工作
+      requestAnimationFrame(() => {
+        container.style.opacity = '1';
+      });
     },
 
     // 隐藏翻译
     hideTranslation() {
-      if (this.translationContainer) {
-        this.translationContainer.style.opacity = '0';
+      const container = this.translationContainer;
+      if (container) {
+        container.style.opacity = '0';
         setTimeout(() => {
-          if (this.translationContainer.style.opacity === '0') {
-            this.translationContainer.style.display = 'none';
-            // 重置最后处理的单词
-            this.lastWord = null;
+          if (container.style.opacity === '0') {
+            container.style.display = 'none';
           }
         }, 200);
       }
     }
   };
 
-  // 初始化
-  console.log('Content script loaded');
+  // 初始化翻译器
   WordTranslator.initialize();
 })(); 
